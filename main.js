@@ -12,6 +12,7 @@ function startServer() {
     const fs = require('fs');
     const exifr = require('exifr');
     const cors = require('cors');
+    const crypto = require('crypto');
 
     const appExpress = express();
     appExpress.use(express.json());
@@ -52,6 +53,17 @@ function startServer() {
         // EXIF 없으면 무시
       }
       return null;
+    }
+
+    // 파일 해시(SHA-1) 추출
+    function getFileHash(filePath) {
+      return new Promise((resolve) => {
+        const hash = crypto.createHash('sha1');
+        const stream = fs.createReadStream(filePath);
+        stream.on('data', (data) => hash.update(data));
+        stream.on('end', () => resolve(hash.digest('hex')));
+        stream.on('error', () => resolve(null));
+      });
     }
 
     // ─────────────────────────────────────────
@@ -100,6 +112,9 @@ function startServer() {
           const destFull = path.join(folderPath, destRelative);
           const alreadyThere = filePath === destFull;
 
+          // 중복 체크를 위한 해시 계산
+          const hash = await getFileHash(filePath);
+
           preview.push({
             from: filePath,
             fromRelative: path.relative(folderPath, filePath),
@@ -110,6 +125,7 @@ function startServer() {
             dateSource,
             alreadyThere,
             size: stat.size,
+            hash,
           });
         }
 
@@ -124,12 +140,13 @@ function startServer() {
     // API: 실제 파일 이동
     // ─────────────────────────────────────────
     appExpress.post('/api/organize', async (req, res) => {
-      const { folderPath, files } = req.body;
+      const { folderPath, files, action } = req.body; // action: 'move' or 'copy'
 
       if (!folderPath || !files || !Array.isArray(files)) {
         return res.status(400).json({ error: '잘못된 요청이에요.' });
       }
 
+      const isCopy = action === 'copy';
       const results = { success: [], skipped: [], failed: [] };
 
       for (const file of files) {
@@ -152,7 +169,11 @@ function startServer() {
             counter++;
           }
 
-          fs.renameSync(file.from, destPath);
+          if (isCopy) {
+            fs.copyFileSync(file.from, destPath);
+          } else {
+            fs.renameSync(file.from, destPath);
+          }
           results.success.push({ from: file.fromRelative, to: path.relative(folderPath, destPath) });
         } catch (err) {
           results.failed.push({ file: file.fromRelative, reason: err.message });
@@ -182,6 +203,23 @@ function startServer() {
         }
       }
     }
+
+    // ─────────────────────────────────────────
+    // API: 이미지 미리보기 서빙
+    // ─────────────────────────────────────────
+    appExpress.get('/api/image', (req, res) => {
+      const { path: filePath } = req.query;
+      if (!filePath || !fs.existsSync(filePath)) {
+        return res.status(404).send('Not Found');
+      }
+      // 보안상 허용된 확장자만 체크하는 것이 좋음
+      const ext = path.extname(filePath).toLowerCase();
+      const allowed = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff'];
+      if (!allowed.includes(ext)) {
+        return res.status(403).send('Forbidden Extension');
+      }
+      res.sendFile(filePath);
+    });
 
     // ─────────────────────────────────────────
     // 서버 시작

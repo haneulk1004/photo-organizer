@@ -257,6 +257,43 @@
   .badge-exif { background: #0a2a1a; color: var(--accent); }
   .badge-mtime { background: #2a2a1a; color: #d4a017; }
   .badge-skip { background: var(--bg3); color: var(--muted); }
+  .badge-dup { background: #2a0a1a; color: var(--error); }
+
+  /* ── Preview Modal ── */
+  .preview-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85); backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; opacity: 0; pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .preview-overlay.active { opacity: 1; pointer-events: auto; }
+  .preview-content {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px; max-width: 90%; max-height: 90%;
+    display: flex; flex-direction: column; gap: 12px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  }
+  .preview-img { max-width: 100%; max-height: 70vh; object-fit: contain; border-radius: 4px; }
+  .preview-info { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted); }
+
+  /* ── Toggle Switch ── */
+  .switch-group { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .switch {
+    position: relative; display: inline-block; width: 40px; height: 20px;
+  }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+    background-color: var(--bg3); transition: .3s; border-radius: 20px;
+    border: 1px solid var(--border);
+  }
+  .slider:before {
+    position: absolute; content: ""; height: 14px; width: 14px; left: 2px; bottom: 2px;
+    background-color: var(--muted); transition: .3s; border-radius: 50%;
+  }
+  input:checked + .slider { background-color: var(--accent2); border-color: var(--accent2); }
+  input:checked + .slider:before { transform: translateX(20px); background-color: #000; }
 
   /* ── Action Row ── */
   .action-row {
@@ -415,7 +452,15 @@
 
     <!-- 실행 버튼 -->
     <div class="action-row">
-      <span class="action-hint">⚠ 파일이 실제로 이동됩니다. 중요한 파일은 미리 백업하세요.</span>
+      <div class="switch-group">
+        <span>이동</span>
+        <label class="switch">
+          <input type="checkbox" id="copyToggle">
+          <span class="slider"></span>
+        </label>
+        <span>복사</span>
+      </div>
+      <span class="action-hint">⚠ 파일이 실제로 처리됩니다. 중요한 파일은 미리 백업하세요.</span>
       <button class="btn btn-ghost" onclick="resetScan()">다시 스캔</button>
       <button class="btn btn-danger" id="organizeBtn" onclick="startOrganize()">정리 실행</button>
     </div>
@@ -478,6 +523,25 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '스캔 실패');
 
+      // 중복 체크 로직 추가: 같은 해시가 여러 번 나오거나 이미 대상 폴더에 있는 경우
+      const seenHashes = new Set();
+      data.files.forEach(f => {
+        if (f.alreadyThere) {
+          seenHashes.add(f.hash);
+        }
+      });
+      
+      data.files.forEach(f => {
+        if (!f.alreadyThere) {
+          if (seenHashes.has(f.hash)) {
+            f.isDuplicate = true;
+          } else {
+            seenHashes.add(f.hash);
+            f.isDuplicate = false;
+          }
+        }
+      });
+
       scannedFiles = data.files;
       renderScanResult(data);
     } catch (err) {
@@ -513,14 +577,19 @@
 
     // 파일 목록
     const listEl = document.getElementById('fileList');
-    listEl.innerHTML = data.files.map(f => `
-      <div class="file-row ${f.alreadyThere ? 'skipped' : ''}">
+    listEl.innerHTML = data.files.map(f => {
+      const isDup = f.isDuplicate && !f.alreadyThere;
+      return `
+      <div class="file-row ${f.alreadyThere ? 'skipped' : ''}" onclick="showPreview('${escHtml(f.from.replace(/\\/g, '/'))}')" style="cursor:pointer">
         <div class="file-from" title="${escHtml(f.fromRelative)}">${escHtml(truncate(f.fromRelative, 40))}</div>
         <div class="arrow">→</div>
         <div class="file-to" title="${escHtml(f.toRelative)}">${escHtml(truncate(f.toRelative, 40))}</div>
-        <div><span class="badge ${f.alreadyThere ? 'badge-skip' : f.dateSource === 'EXIF' ? 'badge-exif' : 'badge-mtime'}">${f.alreadyThere ? 'SKIP' : f.dateSource}</span></div>
+        <div>
+          ${isDup ? '<span class="badge badge-dup">DUP</span>' : ''}
+          <span class="badge ${f.alreadyThere ? 'badge-skip' : f.dateSource === 'EXIF' ? 'badge-exif' : 'badge-mtime'}">${f.alreadyThere ? 'SKIP' : f.dateSource}</span>
+        </div>
       </div>
-    `).join('');
+    `}).join('');
 
     show('scanResult');
   }
@@ -529,6 +598,7 @@
   async function startOrganize() {
     if (!scannedFiles.length) return;
 
+    const action = document.getElementById('copyToggle').checked ? 'copy' : 'move';
     const toMove = scannedFiles.filter(f => !f.alreadyThere);
     if (toMove.length === 0) {
       setError('이동할 파일이 없어요. 이미 모두 정리되어 있어요.');
@@ -550,7 +620,7 @@
         const res = await fetch('/api/organize', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ folderPath: currentFolder, files: batch })
+          body: JSON.stringify({ folderPath: currentFolder, files: batch, action })
         });
 
         const data = await res.json();
@@ -606,6 +676,21 @@
     show('resultSection');
   }
 
+  // ── 미리보기 ──
+  function showPreview(path) {
+    const overlay = document.getElementById('previewOverlay');
+    const img = document.getElementById('previewImg');
+    const info = document.getElementById('previewInfo');
+    
+    img.src = `/api/image?path=${encodeURIComponent(path)}`;
+    info.textContent = path;
+    overlay.classList.add('active');
+  }
+
+  function hidePreview() {
+    document.getElementById('previewOverlay').classList.remove('active');
+  }
+
   // ── 유틸 ──
   function truncate(str, n) {
     return str.length > n ? '...' + str.slice(-(n - 3)) : str;
@@ -658,5 +743,14 @@
     if (e.key === 'Enter') startScan();
   });
 </script>
+<!-- ── Preview Modal ── -->
+<div class="preview-overlay" id="previewOverlay" onclick="hidePreview()">
+  <div class="preview-content" onclick="event.stopPropagation()">
+    <img id="previewImg" class="preview-img" src="" alt="Preview">
+    <div id="previewInfo" class="preview-info"></div>
+    <button class="btn btn-ghost" onclick="hidePreview()">닫기</button>
+  </div>
+</div>
+
 </body>
 </html>

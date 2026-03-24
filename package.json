@@ -63,8 +63,7 @@
         "dmg",
         "zip"
       ],
-      "category": "public.app-category.photography",
-      "icon": "public/icon.png"
+      "category": "public.app-category.photography"
     },
     "dmg": {
       "artifactName": "PhotoOrganizer-${version}.dmg",

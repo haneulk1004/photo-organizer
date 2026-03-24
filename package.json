@@ -61,26 +61,9 @@
     },
     "mac": {
       "target": [
-        "dmg",
         "zip"
       ],
       "category": "public.app-category.photography"
-    },
-    "dmg": {
-      "artifactName": "PhotoOrganizer-${version}.dmg",
-      "contents": [
-        {
-          "x": 410,
-          "y": 150,
-          "type": "link",
-          "path": "/Applications"
-        },
-        {
-          "x": 130,
-          "y": 150,
-          "type": "file"
-        }
-      ]
     }
   }
 }

@@ -16,7 +16,15 @@ function startServer() {
     const appExpress = express();
     appExpress.use(express.json());
     appExpress.use(cors());
-    appExpress.use(express.static('public'));
+    
+    // 정적 파일 서버 경로를 절대 경로로 설정
+    const publicPath = path.join(__dirname, 'public');
+    appExpress.use(express.static(publicPath));
+
+    // 명시적인 루트 라우트 추가
+    appExpress.get('/', (req, res) => {
+      res.sendFile(path.join(publicPath, 'index.html'));
+    });
 
     // ─────────────────────────────────────────
     // 유틸: 날짜 → { year, month } 추출

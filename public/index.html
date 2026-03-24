@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Photo Organizer</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0e10;
+    --bg2: #16161a;
+    --bg3: #1e1e24;
+    --border: #2a2a35;
+    --accent: #00e5a0;
+    --accent2: #0090ff;
+    --warn: #ff6b35;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+    --success: #00e5a0;
+    --error: #ff4d6d;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans KR', sans-serif;
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* ── Header ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 10;
+  }
+
+  .logo {
+    width: 32px; height: 32px;
+    background: var(--accent);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .logo svg { width: 18px; height: 18px; }
+
+  header h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--text);
+  }
+
+  .tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 2px 8px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+  }
+
+  /* ── Main Layout ── */
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px 32px;
+  }
+
+  /* ── Section ── */
+  .section {
+    margin-bottom: 32px;
+  }
+
+  .section-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  /* ── Path Input ── */
+  .path-row {
+    display: flex;
+    gap: 10px;
+  }
+
+  .path-input {
+    flex: 1;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .path-input:focus { border-color: var(--accent); }
+  .path-input::placeholder { color: var(--muted); }
+
+  .btn {
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-family: 'IBM Plex Sans KR', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+  }
+  .btn-primary:hover:not(:disabled) { background: #00ffb3; }
+
+  .btn-danger {
+    background: var(--warn);
+    color: #fff;
+  }
+  .btn-danger:hover:not(:disabled) { background: #ff8555; }
+
+  .btn-ghost {
+    background: var(--bg3);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover:not(:disabled) { border-color: var(--muted); }
+
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── Stats Bar ── */
+  .stats-bar {
+    display: flex;
+    gap: 1px;
+    background: var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+
+  .stat {
+    flex: 1;
+    background: var(--bg2);
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .stat-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* ── Structure Preview ── */
+  .structure-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+
+  .structure-card h3 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  .tree { font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
+  .tree-line { padding: 2px 0; color: var(--muted); }
+  .tree-line.folder { color: var(--accent2); }
+  .tree-line.file { color: var(--text); opacity: 0.7; }
+
+  /* ── File Table ── */
+  .file-table-wrap {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .table-header {
+    display: grid;
+    grid-template-columns: 1fr 20px 1fr 60px;
+    gap: 12px;
+    padding: 10px 16px;
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .file-list { max-height: 340px; overflow-y: auto; }
+  .file-list::-webkit-scrollbar { width: 4px; }
+  .file-list::-webkit-scrollbar-track { background: transparent; }
+  .file-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .file-row {
+    display: grid;
+    grid-template-columns: 1fr 20px 1fr 60px;
+    gap: 12px;
+    padding: 9px 16px;
+    border-bottom: 1px solid var(--border);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    align-items: center;
+    transition: background 0.1s;
+  }
+  .file-row:last-child { border-bottom: none; }
+  .file-row:hover { background: var(--bg3); }
+  .file-row.skipped { opacity: 0.35; }
+
+  .file-from { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .arrow { color: var(--border); text-align: center; }
+  .file-to { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .badge {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-align: center;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+  }
+  .badge-ext { background: #1a2a3a; color: var(--accent2); }
+  .badge-exif { background: #0a2a1a; color: var(--accent); }
+  .badge-mtime { background: #2a2a1a; color: #d4a017; }
+  .badge-skip { background: var(--bg3); color: var(--muted); }
+
+  /* ── Action Row ── */
+  .action-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 20px;
+  }
+
+  .action-hint {
+    font-size: 12px;
+    color: var(--muted);
+    flex: 1;
+  }
+
+  /* ── Result ── */
+  .result-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+  }
+
+  .result-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+  }
+  .result-row:last-child { border-bottom: none; }
+
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dot-success { background: var(--success); }
+  .dot-skip { background: var(--muted); }
+  .dot-error { background: var(--error); }
+
+  /* ── Loading ── */
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 8px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .hidden { display: none !important; }
+
+  /* ── Error Banner ── */
+  .error-banner {
+    background: #2a0a0a;
+    border: 1px solid #5a1a1a;
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--error);
+    margin-bottom: 20px;
+  }
+
+  /* ── Progress Bar ── */
+  .progress-wrap {
+    background: var(--border);
+    border-radius: 3px;
+    height: 4px;
+    margin: 12px 0;
+    overflow: hidden;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+    transition: width 0.3s;
+    width: 0%;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round">
+      <rect x="3" y="3" width="8" height="8" rx="1"/>
+      <rect x="13" y="3" width="8" height="8" rx="1"/>
+      <rect x="3" y="13" width="8" height="8" rx="1"/>
+      <path d="M13 17h8M17 13v8"/>
+    </svg>
+  </div>
+  <h1>PHOTO ORGANIZER</h1>
+  <span class="tag">날짜 · 확장자 기반 자동 정리</span>
+</header>
+
+<main>
+
+  <!-- ── 경로 입력 ── -->
+  <div class="section">
+    <div class="section-label">정리할 폴더 경로</div>
+    <div class="path-row">
+      <input class="path-input" id="folderPath" type="text"
+        placeholder="예: F:\사진"
+        value="">
+      <button class="btn btn-ghost" onclick="selectFolder()">선택</button>
+      <button class="btn btn-primary" id="scanBtn" onclick="startScan()">스캔</button>
+    </div>
+  </div>
+
+  <!-- ── 에러 ── -->
+  <div class="error-banner hidden" id="errorBanner"></div>
+
+  <!-- ── 스캔 결과 ── -->
+  <div id="scanResult" class="hidden">
+
+    <!-- Stats -->
+    <div class="stats-bar">
+      <div class="stat">
+        <div class="stat-value" id="statTotal">0</div>
+        <div class="stat-label">전체 파일</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="statMove">0</div>
+        <div class="stat-label">이동 대상</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="statSkip">0</div>
+        <div class="stat-label">이미 정리됨</div>
+      </div>
+    </div>
+
+    <!-- 구조 미리보기 -->
+    <div class="structure-card">
+      <h3>생성될 폴더 구조</h3>
+      <div class="tree" id="treeView"></div>
+    </div>
+
+    <!-- 파일 목록 -->
+    <div class="section-label">파일 목록</div>
+    <div class="file-table-wrap">
+      <div class="table-header">
+        <span>현재 위치</span>
+        <span></span>
+        <span>이동 위치</span>
+        <span>날짜 소스</span>
+      </div>
+      <div class="file-list" id="fileList"></div>
+    </div>
+
+    <!-- 실행 버튼 -->
+    <div class="action-row">
+      <span class="action-hint">⚠ 파일이 실제로 이동됩니다. 중요한 파일은 미리 백업하세요.</span>
+      <button class="btn btn-ghost" onclick="resetScan()">다시 스캔</button>
+      <button class="btn btn-danger" id="organizeBtn" onclick="startOrganize()">정리 실행</button>
+    </div>
+  </div>
+
+  <!-- ── 진행 중 ── -->
+  <div id="progressSection" class="hidden">
+    <div class="section-label">정리 중...</div>
+    <div class="progress-wrap">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted)" id="progressText">준비 중...</div>
+  </div>
+
+  <!-- ── 완료 결과 ── -->
+  <div id="resultSection" class="hidden">
+    <div class="section-label">정리 완료</div>
+    <div class="result-card" id="resultCard"></div>
+    <div class="action-row" style="margin-top:16px">
+      <button class="btn btn-primary" onclick="resetAll()">새로 정리하기</button>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  let scannedFiles = [];
+  let currentFolder = '';
+
+  // ── 폴더 선택 ──
+  async function selectFolder() {
+    if (window.electron && window.electron.selectFolder) {
+      const path = await window.electron.selectFolder();
+      if (path) {
+        document.getElementById('folderPath').value = path;
+        // 선택하면 자동으로 스캔까지 시작
+        startScan();
+      }
+    } else {
+      alert('이 기능은 앱 버전에서만 작동합니다. 브라우저에서는 경로를 직접 입력해 주세요.');
+    }
+  }
+
+  // ── 스캔 ──
+  async function startScan() {
+    const folderPath = document.getElementById('folderPath').value.trim();
+    if (!folderPath) return;
+
+    currentFolder = folderPath;
+    setError('');
+    setScanBtn(true);
+
+    try {
+      const res = await fetch('/api/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderPath })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '스캔 실패');
+
+      scannedFiles = data.files;
+      renderScanResult(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setScanBtn(false);
+    }
+  }
+
+  function renderScanResult(data) {
+    const skip = data.total - data.toMove;
+
+    document.getElementById('statTotal').textContent = data.total;
+    document.getElementById('statMove').textContent = data.toMove;
+    document.getElementById('statSkip').textContent = skip;
+
+    // 트리 구조 생성
+    const tree = {};
+    data.files.filter(f => !f.alreadyThere).forEach(f => {
+      if (!tree[f.year]) tree[f.year] = {};
+      if (!tree[f.year][f.month]) tree[f.year][f.month] = true;
+    });
+
+    const treeEl = document.getElementById('treeView');
+    let html = `<div class="tree-line folder">📁 ${escHtml(currentFolder)}/</div>`;
+    Object.keys(tree).sort().forEach(year => {
+      html += `<div class="tree-line folder" style="padding-left:16px">📁 ${year}/</div>`;
+      Object.keys(tree[year]).sort().forEach(month => {
+        html += `<div class="tree-line folder" style="padding-left:32px">📁 ${month}/</div>`;
+      });
+    });
+    treeEl.innerHTML = html;
+
+    // 파일 목록
+    const listEl = document.getElementById('fileList');
+    listEl.innerHTML = data.files.map(f => `
+      <div class="file-row ${f.alreadyThere ? 'skipped' : ''}">
+        <div class="file-from" title="${escHtml(f.fromRelative)}">${escHtml(truncate(f.fromRelative, 40))}</div>
+        <div class="arrow">→</div>
+        <div class="file-to" title="${escHtml(f.toRelative)}">${escHtml(truncate(f.toRelative, 40))}</div>
+        <div><span class="badge ${f.alreadyThere ? 'badge-skip' : f.dateSource === 'EXIF' ? 'badge-exif' : 'badge-mtime'}">${f.alreadyThere ? 'SKIP' : f.dateSource}</span></div>
+      </div>
+    `).join('');
+
+    show('scanResult');
+  }
+
+  // ── 실행 ──
+  async function startOrganize() {
+    if (!scannedFiles.length) return;
+
+    const toMove = scannedFiles.filter(f => !f.alreadyThere);
+    if (toMove.length === 0) {
+      setError('이동할 파일이 없어요. 이미 모두 정리되어 있어요.');
+      return;
+    }
+
+    hide('scanResult');
+    show('progressSection');
+    setProgress(0, '파일 이동 중...');
+
+    try {
+      // 진행 상황을 보여주기 위해 배치로 나눠서 전송
+      const batchSize = 20;
+      let done = 0;
+      const allResults = { success: [], skipped: [], failed: [] };
+
+      for (let i = 0; i < toMove.length; i += batchSize) {
+        const batch = toMove.slice(i, i + batchSize);
+        const res = await fetch('/api/organize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ folderPath: currentFolder, files: batch })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '정리 실패');
+
+        allResults.success.push(...(data.success || []));
+        allResults.skipped.push(...(data.skipped || []));
+        allResults.failed.push(...(data.failed || []));
+
+        done += batch.length;
+        setProgress(Math.round((done / toMove.length) * 100), `${done} / ${toMove.length} 처리 중...`);
+      }
+
+      hide('progressSection');
+      renderResult(allResults);
+    } catch (err) {
+      hide('progressSection');
+      show('scanResult');
+      setError(err.message);
+    }
+  }
+
+  function renderResult(data) {
+    const card = document.getElementById('resultCard');
+    let html = '';
+
+    html += `<div class="result-row">
+      <div class="dot dot-success"></div>
+      <span><strong>${data.success.length}개</strong> 파일 이동 완료</span>
+    </div>`;
+
+    if (data.skipped.length) {
+      html += `<div class="result-row">
+        <div class="dot dot-skip"></div>
+        <span><strong>${data.skipped.length}개</strong> 이미 정리된 파일 건너뜀</span>
+      </div>`;
+    }
+
+    if (data.failed.length) {
+      html += `<div class="result-row">
+        <div class="dot dot-error"></div>
+        <span><strong>${data.failed.length}개</strong> 실패</span>
+      </div>`;
+      data.failed.slice(0, 5).forEach(f => {
+        html += `<div class="result-row" style="padding-left:16px; font-size:11px; color:var(--muted)">
+          <div class="dot dot-error" style="opacity:0.5"></div>
+          <span>${escHtml(f.file)}: ${escHtml(f.reason)}</span>
+        </div>`;
+      });
+    }
+
+    card.innerHTML = html;
+    show('resultSection');
+  }
+
+  // ── 유틸 ──
+  function truncate(str, n) {
+    return str.length > n ? '...' + str.slice(-(n - 3)) : str;
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function setError(msg) {
+    const el = document.getElementById('errorBanner');
+    if (msg) { el.textContent = '⚠ ' + msg; show('errorBanner'); }
+    else hide('errorBanner');
+  }
+
+  function setProgress(pct, text) {
+    document.getElementById('progressBar').style.width = pct + '%';
+    document.getElementById('progressText').textContent = text;
+  }
+
+  function setScanBtn(loading) {
+    const btn = document.getElementById('scanBtn');
+    btn.disabled = loading;
+    btn.innerHTML = loading ? '<span class="spinner"></span>스캔 중...' : '스캔';
+  }
+
+  function show(id) { document.getElementById(id).classList.remove('hidden'); }
+  function hide(id) { document.getElementById(id).classList.add('hidden'); }
+
+  function resetScan() {
+    scannedFiles = [];
+    hide('scanResult');
+    hide('errorBanner');
+  }
+
+  function resetAll() {
+    scannedFiles = [];
+    hide('scanResult');
+    hide('resultSection');
+    hide('progressSection');
+    hide('errorBanner');
+  }
+
+  // 엔터키로 스캔
+  document.getElementById('folderPath').addEventListener('keydown', e => {
+    if (e.key === 'Enter') startScan();
+  });
+</script>
+</body>
+</html>

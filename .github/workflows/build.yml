@@ -33,8 +33,7 @@ jobs:
       - name: Build Electron App (macOS)
         if: matrix.os == 'macos-latest'
         run: |
-          # npx를 사용하여 직접 빌드하고, 자가 출판 기능을 완전히 끔
-          npx electron-builder --mac --x64 --arm64 -c.publish=null
+          npx electron-builder --mac --x64 --arm64 --publish never
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -42,7 +41,7 @@ jobs:
       - name: Build Electron App (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          npx electron-builder --win --x64 -c.publish=null
+          npx electron-builder --win --x64 --publish never
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
